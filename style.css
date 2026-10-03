@@ -788,3 +788,19 @@ body {
     line-height: 44px !important;
     text-align: center !important;
 }
+  #wishPopup button[onclick="closeWishPopup()"] {
+    position: absolute !important;
+    top: 12px !important;
+    right: 12px !important;
+    left: auto !important;
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 50% !important;
+    font-size: 22px !important;
+    line-height: 42px !important;
+    z-index: 99999 !important;
+  }
