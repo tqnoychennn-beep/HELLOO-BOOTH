@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HELLOO.BOOTH V8</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="home">
+    <div class="logo">HELLOO.BOOTH</div>
+    <div class="sub">VIRTUAL PHOTOBOOTH</div>
+    <h1>Capture Beautiful Moments</h1>
+    <button onclick="showTemplates()">START</button>
+    <button onclick="openGallery()">GALLERY</button>
+<button
+  id="adminOverlayButton"
+  class="admin-small"
+  onclick="openAdmin()"
+  title="Admin Overlay">
+  ⚙
+</button>
+  
+
+</main>
+ 
+  <section id="templates" style="display:none">
+    <h1>Choose Your Frame</h1>
+    <div class="frames">
+ <button onclick="chooseFrame('wedding')">
+<img id="framePreview1" src="wedding-preview.jpg" alt="FRAME 1">
+  FRAME 1
+</button>
+
+<button onclick="chooseFrame('birthday')">
+  <img id="framePreview2" src="frame2.jpg" alt="FRAME 2">
+  FRAME 2
+</button>
+
+<button onclick="chooseFrame('corporate')">
+  <img
+  id="framePreview3"
+  src="frame3.jpg"
+  alt="THE HELLOO"
+  style="width:100%;display:block;"
+>
+  FRAME 3 
+</button>
+<div id="extraFrames"></div>
+    </div>
+    <button onclick="goHome()">BACK</button>
+  </section>
+  <section id="cameraPage" style="display:none">
+    <h1>Ready?</h1>
+    <div class="camera-wrap">
+  <video id="camera" autoplay playsinline></video>
+<div id="frame2Cameras">
+  <div class="camera-slot" id="cameraSlot1"></div>
+  <div class="camera-slot" id="cameraSlot2"></div>
+  <div class="camera-slot" id="cameraSlot3"></div>
+</div>
+  <img
+  id="liveOverlay"
+  alt="Overlay"
+  style="display:none;"
+>
+
+  <canvas id="canvas" style="display:none;"></canvas>
+  <div id="countdown" style="display:none;"></div>
+</div>
+<div class="camera-buttons">
+  <button id="takePhotoButton" onclick="takePhoto()">📷 TAKE PHOTO</button>
+  <button onclick="switchCamera()">GANTI KAMERA</button>
+  <button onclick="toggleMirror()" id="mirrorButton">
+    MIRROR: OFF
+  </button>
+  <button onclick="goHome()">HOME</button>
+</div>
+
+  
+</section>
+
+<section id="resultPage" style="display:none">
+  <h1>Your Photo</h1>
+  <img id="resultPhoto" alt="Hasil foto">
+
+  <button onclick="openWishPopup()">
+  GUEST WISHES
+</button>
+
+<button onclick="openVoiceWishes()">
+  🎙 RECORD VOICE WISHES
+</button>
+
+  <button id="uploadButton" onclick="uploadPhoto()">
+    DONE
+  </button>
+
+  <button onclick="retakePhoto()">
+    RETAKE
+  </button>
+</section>
+
+<div id="wishPopup" class="wish-popup" style="display:none">
+  <div class="wish-popup-box">
+    <button class="wish-close"
+            onclick="closeWishPopup()">×</button>
+
+    <h3>GUEST WISHES</h3>
+
+    <input id="guestName"
+           maxlength="30"
+           placeholder="Nama tamu">
+
+    <textarea id="guestWish"
+              maxlength="120"
+              rows="3"
+              placeholder="Tulis ucapan..."></textarea>
+
+    <button onclick="saveWishPopup()">
+      SIMPAN UCAPAN
+    </button>
+  </div>
+</div>
+    
+  </section>
+  
+<div id="voicePopup" class="wish-popup"
+     style="display:none">
+  <div class="wish-popup-box">
+    <button class="wish-close"
+            onclick="closeVoiceWishes()">×</button>
+
+    <h3>🎙 VOICE WISHES</h3>
+    <p>Rekam ucapan spesialmu</p>
+
+    <p id="recordStatus">Siap merekam</p>
+<div class="voice-timer">
+  <svg viewBox="0 0 120 120">
+    <circle class="timer-bg" cx="60" cy="60" r="52"/>
+    <circle id="timerProgress"
+            class="timer-progress"
+            cx="60" cy="60" r="52"/>
+  </svg>
+  <span id="timerNumber">15</span>
+</div>
+    <button id="startRecord"
+            onclick="startVoiceRecording()">
+      RECORD
+    </button>
+
+    <button id="stopRecord"
+            onclick="stopVoiceRecording()"
+            disabled>
+      STOP
+    </button>
+
+    <audio id="voicePlayback"
+           controls
+           style="display:none;width:100%">
+    </audio>
+
+    <button id="saveVoice"
+            onclick="saveVoiceRecording()"
+            disabled>
+      SAVE
+    </button>
+  </div>
+</div>
+
+  <section id="thankyou" style="display:none">
+    <h1>Thank You</h1><div id="qr"></div>
+    <button id="downloadButton">OPEN / DOWNLOAD PHOTO</button>
+    <button onclick="retakePhoto()">FOTO LAGI</button>
+    <button onclick="openGallery()">GALLERY</button>
+    <button onclick="goHome()">HOME</button>
+  </section>
+  <section id="galleryPage" style="display:none">
+    <h1>Gallery</h1><div id="gallery"></div><button onclick="goHome()">HOME</button>
+  </section>
+  <section id="adminPage" style="display:none">
+    <h1>ADMIN OVERLAY</h1>
+    
+    <div id="adminLogin">
+      <input id="adminEmail" type="email" placeholder="Email admin" autocomplete="username">
+      <input id="adminPassword" type="password" placeholder="Password admin" autocomplete="current-password">
+      <button id="loginButton" onclick="adminLogin()">LOGIN ADMIN</button>
+      <p id="loginMessage" role="status"></p>
+    </div>
+    <div id="adminControls" style="display:none"><div class="client-manager">
+  <h2>CLIENT MANAGEMENT</h2>
+
+  <input
+    type="text"
+    id="newClientName"
+    placeholder="Nama client / acara"
+  >
+
+  <button onclick="addClient()">
+    + TAMBAH CLIENT
+  </button>
+
+  <div id="clientList"></div>
+</div>
+      <label for="overlayCategory">Kategori</label>
+      <select id="overlayCategory" onchange="refreshOverlayPreview()">
+        <option value="wedding">WEDDING</option><option value="birthday">BIRTHDAY</option><option value="corporate">CORPORATE</option>
+      </select>
+      <input id="overlayFile" type="file" accept="image/png" onchange="previewSelectedOverlay()">
+      <img id="overlayPreview" alt="Preview overlay" style="display:none">
+      <p id="overlayStatus" role="status"></p>
+      <button id="saveOverlayButton" onclick="saveOverlay()">SIMPAN OVERLAY</button>
+      <button class="secondary" onclick="adminLogout()">LOGOUT</button>
+    </div>
+    <button onclick="goHome()">HOME</button>
+  </section>
+  <div id="photoModal" class="photo-modal" style="display:none">
+    <button onclick="closePhoto()" class="back-button">← BACK</button>
+    <span class="photo-close" onclick="closePhoto()">×</span>
+    <img id="modalPhoto" alt="Foto galeri">
+    <button id="modalDownload">DOWNLOAD PHOTO</button>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="config.js"></script>
+  <script>
+window.onerror = function(message, source, line) {
+  alert("ERROR: " + message + "\nBaris: " + line);
+};
+</script>
+  <script src="app.js"></script>
+  <audio id="bgMusic" src="music.mp3" loop></audio>
+
+<button id="musicButton"
+        onclick="toggleMusic()"
+        class="music-button">
+  ♫ OFF
+</button>
+</body>
+</html>
