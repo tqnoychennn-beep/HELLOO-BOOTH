@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HELLOO.BOOTH LIVE</title>
+
+<style>
+*{box-sizing:border-box}
+
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  background:#08090c;
+  color:white;
+  font-family:Arial,sans-serif;
+  overflow:hidden;
+}
+
+header{
+  position:fixed;
+  top:20px;
+  left:0;
+  width:100%;
+  text-align:center;
+  z-index:10;
+}
+
+header h1{
+  margin:0;
+  font-size:36px;
+  letter-spacing:4px;
+}
+
+header p{
+  margin:7px 0;
+  color:#d4af37;
+  letter-spacing:5px;
+}
+
+#stage{
+  width:100vw;
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:100px 30px 60px;
+}
+
+#photo{
+  display:none;
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+  border-radius:12px;
+}
+
+#status{
+  color:#aaa;
+  font-size:24px;
+  text-align:center;
+}
+
+footer{
+  position:fixed;
+  bottom:18px;
+  width:100%;
+  text-align:center;
+  color:#d4af37;
+  letter-spacing:3px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>HELLOO.BOOTH</h1>
+  <p>LIVE MOMENTS</p>
+</header>
+
+<div id="stage">
+  <div id="status">Loading photos...</div>
+  <img id="photo">
+</div>
+
+<footer>LIVE GALLERY • HELLOO.BOOTH</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+
+<script>
+const eventId=new URLSearchParams(location.search).get("event");
+
+const sb=supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
+
+const photo=document.getElementById("photo");
+const status=document.getElementById("status");
+
+let photos=[];
+let index=0;
+
+async function loadPhotos(){
+
+  if(!eventId){
+    status.textContent="Event ID tidak ditemukan";
+    return;
+  }
+
+  const folder="events/"+eventId+"/photos";
+
+  const {data,error}=await sb.storage
+    .from(BUCKET)
+    .list(folder,{limit:1000});
+
+  if(error){
+    status.textContent="Gagal membuka gallery";
+    return;
+  }
+
+  photos=(data||[])
+    .filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f.name))
+    .map(f=>{
+      return sb.storage
+        .from(BUCKET)
+        .getPublicUrl(folder+"/"+f.name)
+        .data.publicUrl;
+    });
+
+  if(!photos.length){
+    photo.style.display="none";
+    status.style.display="block";
+    status.textContent="Waiting for photos...";
+    return;
+  }
+
+  status.style.display="none";
+  photo.style.display="block";
+
+  if(!photo.src){
+    showPhoto();
+  }
+}
+
+function showPhoto(){
+
+  if(!photos.length)return;
+
+  if(index>=photos.length)index=0;
+
+  photo.src=photos[index];
+  index++;
+}
+
+loadPhotos();
+
+/* foto berganti setiap 6 detik */
+setInterval(showPhoto,6000);
+
+/* cek foto baru setiap 5 detik */
+setInterval(loadPhotos,5000);
+</script>
+
+</body>
+</html>

@@ -12,6 +12,7 @@ let mirrorEnabled = false;
 let adminSession = null;
 
 let savedVoicePath = null;
+let clientMusic = null;
 let voiceTimer = null;
 
 function stopVoiceTimer() {
@@ -117,8 +118,9 @@ async function chooseFrame(frame) {
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: cameraMode },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
+width: { ideal: 3840 },
+height: { ideal: 2160 },
+frameRate: { ideal: 30 }
       },
       audio: false
     });
@@ -571,17 +573,12 @@ return data.publicUrl + "?t=" + Date.now();
 
     overlay.style.display = "none";
 
-    // ==========================
-    // BUKA SATU STREAM KAMERA
-    // ==========================
     stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: cameraMode },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      },
-      audio: false
-    });
+  video: {
+    facingMode: { ideal: cameraMode }
+  },
+  audio: false
+});
 
     // ==========================
     // LOAD FRAME CLIENT
@@ -899,7 +896,7 @@ if (mirrorEnabled) {
   shotCtx.translate(shot.width, 0);
   shotCtx.scale(-1, 1);
 }
-
+shotCtx.filter = "brightness(1.12) contrast(1.06) saturate(1.04)";
 shotCtx.drawImage(
   camera1,
   0,
@@ -1209,6 +1206,7 @@ async function downloadUrl(url, name = "HELLOO-BOOTH-10x15-300DPI.jpg") {
 }
 async function uploadPhoto() {
   if (!photoBlob) { alert("Foto belum tersedia."); return; }
+  
   const button = $("uploadButton"); button.disabled = true; button.textContent = "UPLOADING...";
   try {
     const sb = client();
@@ -1606,25 +1604,37 @@ savedVoicePath = filename;
   }
 }
 function toggleMusic() {
-  const clientMusic = $("clientThemeMusic");
   const defaultMusic = $("bgMusic");
   const button = $("musicButton");
 
-  // Kalau client punya musik theme, pakai itu.
-  // Kalau tidak, pakai musik bawaan.
-  const music =
-    clientMusic && clientMusic.src
-      ? clientMusic
-      : defaultMusic;
+  // Prioritas musik khusus client yang sudah
+  // dimuat oleh loadClientMusic().
+  const music = clientMusic || defaultMusic;
 
   if (!music || !button) return;
 
+  // Matikan musik lain supaya tidak tumpang tindih
+  if (music === clientMusic && defaultMusic) {
+    defaultMusic.pause();
+  }
+
+  if (
+    music !== clientMusic &&
+    clientMusic &&
+    !clientMusic.paused
+  ) {
+    clientMusic.pause();
+  }
+
   if (music.paused) {
-    music.play().then(() => {
-      button.textContent = "♫ ON";
-    }).catch(() => {
-      button.textContent = "♫ OFF";
-    });
+    music.play()
+      .then(() => {
+        button.textContent = "♫ ON";
+      })
+      .catch(error => {
+        console.error("Musik gagal diputar:", error);
+        button.textContent = "♫ OFF";
+      });
   } else {
     music.pause();
     button.textContent = "♫ OFF";
@@ -1683,6 +1693,23 @@ list.style.display = "grid";
 list.style.gridTemplateColumns = "repeat(2, minmax(0, 1fr))";
 list.style.gap = "12px";
   clients.forEach(c => {
+  	let photoCount = 0;
+
+(async () => {
+  const { data: photoFiles, error: photoError } = await client()
+    .storage
+    .from(BUCKET)
+    .list(`events/${c.id}/photos`, { limit: 1000 });
+
+  if (!photoError && photoFiles) {
+    photoCount = photoFiles.length;
+  }
+
+  const countEl = document.getElementById(`photo-count-${c.id}`);
+  if (countEl) {
+    countEl.textContent = `📸 ${photoCount} PHOTO`;
+  }
+})();
     const link = new URL(window.location.href);
     link.searchParams.set("event", c.id);
 
@@ -1707,7 +1734,15 @@ title.style.cssText = `
   margin-bottom: 12px;
   overflow-wrap: anywhere;
 `;
-
+const photoCountEl = document.createElement("div");
+photoCountEl.id = `photo-count-${c.id}`;
+photoCountEl.textContent = "📸 Menghitung...";
+photoCountEl.style.cssText = `
+  color:#ffffff;
+  font-size:12px;
+  font-weight:bold;
+  margin-bottom:10px;
+`;
 title.textContent = "📁 " + c.name;
     const button = document.createElement("button");
     button.textContent = "SALIN LINK CLIENT";
@@ -1736,6 +1771,24 @@ designButton.style.cssText = `
 designButton.onclick = () => {
   openFrameManager(c);
 };
+const aiDesignButton = document.createElement("button");
+
+aiDesignButton.textContent = "✨ KELOLA AI DESIGN";
+
+aiDesignButton.style.cssText = `
+  font-size:11px;
+  padding:8px 6px;
+  width:100%;
+  border-radius:8px;
+  line-height:1.3;
+  margin-bottom:8px;
+  font-weight:bold;
+  cursor:pointer;
+`;
+
+aiDesignButton.onclick = () => {
+  openAIDesignManager(c);
+};
 const themeButton = document.createElement("button");
 themeButton.textContent = "🎨 EDIT THEME";
 themeButton.style.cssText = `
@@ -1751,6 +1804,74 @@ themeButton.style.cssText = `
 themeButton.onclick = () => {
   openThemeManager(c);
 };
+const musicButton = document.createElement("button");
+musicButton.textContent = "🎵 MUSIC";
+musicButton.style.cssText = `
+  font-size:11px;
+  padding:8px 6px;
+  width:100%;
+  border-radius:8px;
+  margin-top:8px;
+  font-weight:bold;
+  cursor:pointer;
+`;
+
+musicButton.onclick = () => {
+  openMusicManager(c);
+};
+const downloadAllButton = document.createElement("button");
+downloadAllButton.textContent = "⬇ DOWNLOAD ALL PHOTOS";
+downloadAllButton.style.cssText = `
+  font-size:11px;
+  padding:8px 6px;
+  width:100%;
+  border-radius:8px;
+  margin-top:8px;
+  font-weight:bold;
+  cursor:pointer;
+`;
+
+downloadAllButton.onclick = async () => {
+  const sb = client();
+
+  const { data: files, error } = await sb.storage
+    .from(BUCKET)
+    .list(`events/${c.id}/photos`, { limit: 1000 });
+
+  if (error) {
+    alert("Gagal mengambil foto: " + error.message);
+    return;
+  }
+
+  if (!files || files.length === 0) {
+    alert("Belum ada foto untuk client ini.");
+    return;
+  }
+
+  for (const file of files) {
+    const { data, error: downloadError } = await sb.storage
+      .from(BUCKET)
+      .download(`events/${c.id}/photos/${file.name}`);
+
+    if (downloadError) continue;
+
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+};
+
+item.appendChild(musicButton);
+item.appendChild(downloadAllButton);
+
+designButton.insertAdjacentElement("afterend", themeButton);
 designButton.insertAdjacentElement("afterend", themeButton);
 title.style.cursor = "pointer";
 
@@ -1817,9 +1938,13 @@ deleteButton.onclick = async () => {
 };
     item.append(
   title,
+  photoCountEl,
   document.createElement("br"),
   designButton,
-  button,
+  
+  aiDesignButton,
+themeButton,
+button,
   deleteButton
 );
     list.appendChild(item);
@@ -2242,9 +2367,13 @@ async function loadClientFramePreviews() {
   });
 }
 
-    window.addEventListener("load", () => {
+    window.addEventListener("load", async () => {
   loadClientFramePreviews();
   loadClientTheme();
+  loadAIOverlay();
+
+  // Load musik khusus client
+  await loadClientMusic();
 
   const params = new URLSearchParams(window.location.search);
 
@@ -2627,5 +2756,889 @@ if (theme.logo) {
       "Theme gagal dimuat:",
       error
     );
+  }
+}
+function showPhotoMode() {
+  stopCamera();
+
+  document.querySelectorAll("main, section").forEach(el => {
+    el.style.display = "none";
+  });
+
+  document.getElementById("photoModePage").style.display = "block";
+}
+
+function chooseJustPhoto() {
+  document.getElementById("photoModePage").style.display = "none";
+  showTemplates();
+}
+
+function chooseAIPhoto() {
+  document.getElementById("photoModePage").style.display = "none";
+  document.getElementById("aiPhotoPage").style.display = "block";
+}
+let aiCameraMode = "user";
+let aiMirrorEnabled = false;
+
+async function startAICamera() {
+  if (window.aiCameraStream) {
+    window.aiCameraStream
+      .getTracks()
+      .forEach(track => track.stop());
+
+    window.aiCameraStream = null;
+  }
+
+  const aiStream =
+    await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: aiCameraMode }
+      },
+      audio: false
+    });
+
+  const video =
+    document.getElementById("aiCamera");
+
+  if (!video) {
+    aiStream
+      .getTracks()
+      .forEach(track => track.stop());
+
+    throw new Error("Element kamera AI tidak ditemukan");
+  }
+
+  video.srcObject = aiStream;
+  video.playsInline = true;
+  video.muted = true;
+
+  window.aiCameraStream = aiStream;
+
+  video.style.transform =
+    aiMirrorEnabled
+      ? "scaleX(-1)"
+      : "none";
+
+  await video.play();
+
+  if (
+    video.videoWidth === 0 ||
+    video.videoHeight === 0
+  ) {
+    await new Promise(resolve => {
+      video.addEventListener(
+        "loadeddata",
+        resolve,
+        { once: true }
+      );
+    });
+  }
+}
+
+async function switchAICamera() {
+  aiCameraMode =
+    aiCameraMode === "user" ? "environment" : "user";
+
+  await startAICamera();
+}
+
+function toggleAIMirror() {
+  aiMirrorEnabled = !aiMirrorEnabled;
+
+  const video = document.getElementById("aiCamera");
+
+  video.style.transform =
+    aiMirrorEnabled ? "scaleX(-1)" : "none";
+
+  document.getElementById("aiMirrorButton").textContent =
+    aiMirrorEnabled ? "MIRROR: ON" : "MIRROR: OFF";
+}
+
+function backFromAICamera() {
+  if (window.aiCameraStream) {
+    window.aiCameraStream.getTracks().forEach(track => track.stop());
+    window.aiCameraStream = null;
+  }
+
+  document.getElementById("aiCameraPage").style.display = "none";
+  document.getElementById("aiPhotoPage").style.display = "block";
+}
+async function selectAIStyle(style) {
+  document.getElementById("aiPhotoPage").style.display = "none";
+  document.getElementById("aiCameraPage").style.display = "block";
+
+  const names = {
+  chibi: "CHIBI 3D"
+};
+
+  document.getElementById("aiStyleName").textContent = names[style] || style;
+
+  window.selectedAIStyle = style;
+
+  try {
+  aiCameraMode = "user";
+  aiMirrorEnabled = false;
+
+  document.getElementById("aiMirrorButton").textContent =
+    "MIRROR: OFF";
+// Pastikan overlay client sudah terpasang sebelum kamera aktif
+await loadAIOverlay();
+  await startAICamera();
+
+} catch (error) {
+  alert("Kamera tidak bisa dibuka: " + error.message);
+}
+}
+async function takeAIPhoto() {
+  const video = document.getElementById("aiCamera");
+
+  if (
+    !video ||
+    video.readyState < 2 ||
+    video.videoWidth === 0 ||
+    video.videoHeight === 0
+  ) {
+    alert("Kamera belum siap");
+    return;
+  }
+
+  const countdown = document.createElement("div");
+
+  countdown.style.cssText = `
+    position:fixed;
+    inset:0;
+    z-index:999999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:120px;
+    font-weight:900;
+    color:white;
+    background:rgba(0,0,0,0.15);
+    text-shadow:0 4px 20px rgba(0,0,0,.8);
+    pointer-events:none;
+  `;
+
+  document.body.appendChild(countdown);
+
+  try {
+    for (let i = 3; i >= 1; i--) {
+      countdown.textContent = i;
+      await new Promise(resolve =>
+        setTimeout(resolve, 1000)
+      );
+    }
+
+    countdown.textContent = "SMILE!";
+
+    await new Promise(resolve =>
+      setTimeout(resolve, 500)
+    );
+
+    const canvas =
+      document.createElement("canvas");
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) {
+      throw new Error("Canvas tidak tersedia");
+    }
+
+    ctx.save();
+
+    if (aiMirrorEnabled) {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+
+    ctx.drawImage(
+      video,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    ctx.restore();
+
+    const blob = await new Promise(
+      (resolve, reject) => {
+        canvas.toBlob(
+          result => {
+            if (result) {
+              resolve(result);
+            } else {
+              reject(
+                new Error("Gagal membuat foto")
+              );
+            }
+          },
+          "image/jpeg",
+          0.95
+        );
+      }
+    );
+
+    window.aiPhotoBlob = blob;
+
+    if (window.aiPhotoUrl) {
+      URL.revokeObjectURL(
+        window.aiPhotoUrl
+      );
+    }
+
+    window.aiPhotoUrl =
+      URL.createObjectURL(blob);
+
+    // Matikan kamera setelah foto berhasil
+    if (window.aiCameraStream) {
+      window.aiCameraStream
+        .getTracks()
+        .forEach(track => track.stop());
+
+      window.aiCameraStream = null;
+    }
+
+    document.getElementById(
+      "aiCameraPage"
+    ).style.display = "none";
+
+    document.getElementById(
+      "aiPreviewPage"
+    ).style.display = "flex";
+
+    document.getElementById(
+      "aiPhotoPreview"
+    ).src = window.aiPhotoUrl;
+
+    const processButton =
+      document.querySelector(
+        'button[onclick="processAIPhoto()"]'
+      );
+
+    if (processButton) {
+      processButton.style.display = "block";
+      processButton.disabled = false;
+      processButton.textContent =
+        "✨ PROCESS AI";
+    }
+
+    const names = {
+      chibi: "✨ CHIBI 3D"
+    };
+
+    document.getElementById(
+      "aiPreviewStyle"
+    ).textContent =
+      "AI STYLE: " +
+      (
+        names[window.selectedAIStyle] ||
+        "AI"
+      );
+
+  } catch (error) {
+    console.error(
+      "TAKE AI PHOTO ERROR:",
+      error
+    );
+
+    alert(
+      "Gagal mengambil foto AI: " +
+      error.message
+    );
+
+  } finally {
+    if (countdown) {
+      countdown.remove();
+    }
+  }
+}
+
+function retakeAIPhoto() {
+  document.getElementById("aiPreviewPage").style.display = "none";
+  document.getElementById("aiCameraPage").style.display = "block";
+
+  startAICamera();
+}
+
+async function processAIPhoto() {
+  if (!window.aiPhotoBlob) {
+    alert("Foto belum tersedia");
+    return;
+  }
+
+  try {
+    const button = document.querySelector(
+      'button[onclick="processAIPhoto()"]'
+    );
+
+    if (button) {
+      button.disabled = true;
+      button.textContent = "⏳ PROCESSING AI...";
+    }
+
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+
+      reader.readAsDataURL(window.aiPhotoBlob);
+    });
+// TAMPILKAN AI PROCESSING
+const aiProcessing = document.createElement("div");
+aiProcessing.id = "aiProcessing";
+aiProcessing.innerHTML = `
+  <div style="
+    text-align:center;
+    color:white;
+    font-family:Arial,sans-serif;
+  ">
+    
+
+    <div style="
+      font-size:26px;
+      font-weight:800;
+      letter-spacing:2px;
+    ">
+      AI PHOTO PROCESSING
+    </div>
+
+    <div style="
+      font-size:17px;
+      margin-top:15px;
+    ">
+      Please wait...
+    </div>
+
+    <div style="
+  font-size:15px;
+  margin-top:12px;
+  color:#ffcc00;
+  font-weight:bold;
+">
+  PLEASE DO NOT CLOSE THIS PAGE
+</div>
+  </div>
+`;
+
+aiProcessing.style.cssText = `
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.92);
+  z-index:9999999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+`;
+
+document.body.appendChild(aiProcessing);
+    const response = await fetch("/api/generate-ai", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        image: base64,
+        style: window.selectedAIStyle || "chibi"
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "AI gagal diproses");
+    }
+// HILANGKAN LAYAR PROCESSING
+if (aiProcessing) {
+  aiProcessing.remove();
+}
+    if (!data.image && !data.imageUrl) {
+  throw new Error("AI tidak mengembalikan gambar");
+}
+
+const resultUrl = data.image
+  ? "data:image/png;base64," + data.image
+  : data.imageUrl;
+  const aiResponse = await fetch(resultUrl);
+const aiBlob = await aiResponse.blob();
+
+let finalAIBlob = aiBlob;
+
+if (aiOverlayUrl) {
+  const aiImg = new Image();
+  const overlayImg = new Image();
+overlayImg.crossOrigin = "anonymous";
+  const aiImgUrl = URL.createObjectURL(aiBlob);
+
+  await new Promise((resolve, reject) => {
+    aiImg.onload = resolve;
+    aiImg.onerror = reject;
+    aiImg.src = aiImgUrl;
+  });
+
+  await new Promise((resolve, reject) => {
+    overlayImg.onload = resolve;
+    overlayImg.onerror = reject;
+    overlayImg.src = aiOverlayUrl;
+  });
+
+  const finalCanvas = document.createElement("canvas");
+  finalCanvas.width = aiImg.naturalWidth;
+  finalCanvas.height = aiImg.naturalHeight;
+
+  const finalCtx = finalCanvas.getContext("2d");
+
+  finalCtx.drawImage(
+    aiImg,
+    0,
+    0,
+    finalCanvas.width,
+    finalCanvas.height
+  );
+
+  finalCtx.q(
+    overlayImg,
+    0,
+    0,
+    finalCanvas.width,
+    finalCanvas.height
+  );
+
+  finalAIBlob = await new Promise(resolve =>
+    finalCanvas.toBlob(resolve, "image/png", 1)
+  );
+
+  URL.revokeObjectURL(aiImgUrl);
+}
+
+photoBlob = finalAIBlob;
+
+if (photoPreviewUrl) {
+  URL.revokeObjectURL(photoPreviewUrl);
+}
+
+photoPreviewUrl = URL.createObjectURL(photoBlob);
+
+document.getElementById("aiPhotoPreview").src = photoPreviewUrl;
+
+document.getElementById("aiDownloadButton").style.display = "block";
+document.getElementById("aiBackHomeButton").style.display = "block";
+    alert("AI PHOTO BERHASIL!");
+
+  } catch (error) {
+    console.error(error);
+    alert("AI ERROR: " + error.message);
+
+  } finally {
+  	const processing = document.getElementById("aiProcessing");
+if (processing) {
+  processing.remove();
+}
+    const button = document.querySelector(
+      'button[onclick="processAIPhoto()"]'
+    );
+
+    if (button) {
+      button.disabled = false;
+      button.textContent = "✨ PROCESS AI";
+    }
+  }
+}
+async function downloadAIPhoto() {
+  if (!photoBlob) {
+    alert("Foto AI belum tersedia.");
+    return;
+  }
+
+  try {
+    const url = URL.createObjectURL(photoBlob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "HELLOO-BOOTH-AI-PHOTO.jpg";
+
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 5000);
+
+// Simpan hasil AI ke Gallery
+const sb = client();
+const fileName = `AI-${Date.now()}.jpg`;
+const photoPath = `events/${eventId}/photos/${fileName}`;
+
+const { error: uploadError } = await sb.storage
+  .from(BUCKET)
+  .upload(photoPath, photoBlob, {
+    contentType: "image/jpeg",
+    upsert: false
+  });
+
+if (uploadError) {
+  console.error("Gagal simpan AI Photo ke Gallery:", uploadError);
+} else {
+  console.log("AI Photo berhasil masuk Gallery:", photoPath);
+}
+backAIToHome();
+
+} catch (error) {
+  
+    alert("Download gagal: " + error.message);
+  }
+}
+
+function backAIToHome() {
+  if (window.aiCameraStream) {
+    window.aiCameraStream
+      .getTracks()
+      .forEach(track => track.stop());
+
+    window.aiCameraStream = null;
+  }
+
+  goHome();
+}
+let aiOverlayUrl = "";
+
+// Ambil AI overlay milik client dari Supabase
+async function loadAIOverlay() {
+  aiOverlayUrl = "";
+
+  if (!eventId || eventId === "default") {
+    return;
+  }
+
+  const path =
+    "events/" + eventId + "/ai-overlay.png";
+
+  const { data } = client()
+    .storage
+    .from(BUCKET)
+    .getPublicUrl(path);
+
+  if (!data || !data.publicUrl) {
+    return;
+  }
+
+  // Cek apakah file benar-benar ada
+  try {
+    const response = await fetch(
+      data.publicUrl + "?t=" + Date.now(),
+      { method: "HEAD" }
+    );
+
+    if (!response.ok) {
+      return;
+    }
+
+    aiOverlayUrl =
+      data.publicUrl + "?t=" + Date.now();
+const overlay = document.getElementById("aiCameraOverlay");
+
+if (overlay) {
+  overlay.src = aiOverlayUrl;
+  overlay.style.display = "block";
+}
+  } catch (error) {
+    console.log("AI overlay belum tersedia.");
+  }
+}
+
+function changeAIOverlay(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  if (file.type !== "image/png") {
+    alert("Overlay harus file PNG.");
+    event.target.value = "";
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    aiOverlayUrl = e.target.result;
+const overlay = document.getElementById("aiCameraOverlay");
+
+if (overlay) {
+  overlay.src = aiOverlayUrl;
+  overlay.style.display = "block";
+}
+    try {
+      localStorage.setItem("aiOverlayUrl", aiOverlayUrl);
+    } catch (err) {
+      console.warn("Overlay terlalu besar untuk disimpan permanen.");
+    }
+
+    alert("OVERLAY BERHASIL DIPILIH");
+  };
+
+  reader.readAsDataURL(file);
+}
+
+async function openAIDesignManager(c) {
+  const old = document.getElementById("aiDesignManagerPopup");
+  if (old) old.remove();
+
+  const popup = document.createElement("div");
+  popup.id = "aiDesignManagerPopup";
+
+  popup.style.cssText = `
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.9);
+    z-index:99999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    box-sizing:border-box;
+  `;
+
+  const box = document.createElement("div");
+
+  box.style.cssText = `
+    width:100%;
+    max-width:430px;
+    background:#181818;
+    color:white;
+    border:1px solid #d4af37;
+    border-radius:16px;
+    padding:20px;
+    box-sizing:border-box;
+    text-align:center;
+  `;
+
+  const title = document.createElement("h2");
+  title.textContent = "✨ AI DESIGN - " + c.name;
+  title.style.color = "#d4af37";
+
+  const preview = document.createElement("img");
+
+  preview.style.cssText = `
+    width:100%;
+    max-height:420px;
+    object-fit:contain;
+    background:#222;
+    border-radius:10px;
+    margin:10px 0 15px;
+    display:none;
+  `;
+
+  const path =
+    "events/" + c.id + "/ai-overlay.png";
+
+  const { data } = client()
+    .storage
+    .from(BUCKET)
+    .getPublicUrl(path);
+
+  if (data && data.publicUrl) {
+    const testUrl =
+      data.publicUrl + "?t=" + Date.now();
+
+    try {
+      const response = await fetch(testUrl, {
+        method: "HEAD"
+      });
+
+      if (response.ok) {
+        preview.src = testUrl;
+        preview.style.display = "block";
+      }
+    } catch (error) {
+      console.log("AI overlay belum ada.");
+    }
+  }
+
+  const uploadBtn = document.createElement("button");
+  uploadBtn.textContent = "UPLOAD / GANTI AI OVERLAY";
+
+  uploadBtn.style.cssText = `
+    width:100%;
+    padding:14px;
+    margin-top:8px;
+    font-weight:bold;
+  `;
+
+  uploadBtn.onclick = () => {
+    const input = document.createElement("input");
+
+    input.type = "file";
+    input.accept = "image/png";
+
+    input.onchange = async () => {
+      const file = input.files[0];
+
+      if (!file) return;
+
+      if (file.type !== "image/png") {
+        alert("AI Overlay harus PNG.");
+        return;
+      }
+
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = "UPLOADING...";
+
+      try {
+        const { error } = await client()
+          .storage
+          .from(BUCKET)
+          .upload(
+            path,
+            file,
+            {
+              upsert: true,
+              contentType: "image/png",
+              cacheControl: "3600"
+            }
+          );
+
+        if (error) throw error;
+
+        const newUrl =
+          data.publicUrl +
+          "?t=" +
+          Date.now();
+
+        preview.src = newUrl;
+        preview.style.display = "block";
+
+        alert(
+          "AI OVERLAY " +
+          c.name +
+          " BERHASIL DISIMPAN!"
+        );
+
+      } catch (error) {
+        alert(
+          "Gagal upload AI Overlay: " +
+          error
+          .message
+);
+} finally {
+  uploadBtn.disabled = false;
+  uploadBtn.textContent = "UPLOAD / GANTI AI OVERLAY";
+}
+};
+
+input.click();
+};
+
+const closeBtn = document.createElement("button");
+closeBtn.textContent = "TUTUP";
+closeBtn.style.cssText = `
+  width:100%;
+  padding:14px;
+  margin-top:10px;
+  cursor:pointer;
+`;
+
+closeBtn.onclick = () => {
+  popup.remove();
+};
+
+box.append(
+  title,
+  preview,
+  uploadBtn,
+  closeBtn
+);
+
+popup.appendChild(box);
+document.body.appendChild(popup);
+}
+async function openMusicManager(c) {
+  const sb = client();
+
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "audio/*";
+
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `events/${c.id}/music/background.${ext}`;
+
+      const { data: oldFiles } = await sb.storage
+        .from(BUCKET)
+        .list(`events/${c.id}/music`);
+
+      if (oldFiles && oldFiles.length) {
+        const paths = oldFiles.map(
+          f => `events/${c.id}/music/${f.name}`
+        );
+
+        await sb.storage
+          .from(BUCKET)
+          .remove(paths);
+      }
+
+      const { error } = await sb.storage
+        .from(BUCKET)
+        .upload(path, file, {
+          upsert: true,
+          contentType: file.type
+        });
+
+      if (error) throw error;
+
+      alert("🎵 Musik " + c.name + " berhasil disimpan!");
+
+    } catch (error) {
+      alert("Gagal upload musik: " + error.message);
+    }
+  };
+
+  input.click();
+}
+async function loadClientMusic() {
+  try {
+    const sb = client();
+
+    const { data: files, error } = await sb.storage
+      .from(BUCKET)
+      .list(`events/${eventId}/music`);
+
+    if (error || !files || files.length === 0) {
+      console.log("Tidak ada musik untuk client:", eventId);
+      return;
+    }
+
+    const musicFile = files.find(f =>
+      /\.(mp3|wav|ogg|m4a|aac)$/i.test(f.name)
+    );
+
+    if (!musicFile) return;
+
+    const { data } = sb.storage
+      .from(BUCKET)
+      .getPublicUrl(`events/${eventId}/music/${musicFile.name}`);
+
+    if (!data?.publicUrl) return;
+
+    if (clientMusic) {
+      clientMusic.pause();
+      clientMusic = null;
+    }
+
+    clientMusic = new Audio(data.publicUrl);
+    clientMusic.loop = true;
+    clientMusic.volume = 0.5;
+
+    console.log("Musik client siap:", eventId);
+
+  } catch (error) {
+    console.error("Gagal load musik client:", error);
   }
 }

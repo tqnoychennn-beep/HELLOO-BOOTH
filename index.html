@@ -11,7 +11,7 @@
     <div class="logo">HELLOO.BOOTH</div>
     <div class="sub">VIRTUAL PHOTOBOOTH</div>
     <h1>Capture Beautiful Moments</h1>
-    <button onclick="showTemplates()">START</button>
+    <button onclick="showPhotoMode()">START</button>
     <button onclick="openGallery()">GALLERY</button>
 <button
   id="adminOverlayButton"
@@ -23,7 +23,82 @@
   
 
 </main>
- 
+ <section id="photoModePage" style="display:none">
+  <h1>Choose Photo Mode</h1>
+
+  <button onclick="chooseJustPhoto()">
+    📷 JUST PHOTO
+  </button>
+
+  <button onclick="chooseAIPhoto()">
+    ✨ AI PHOTO
+  </button>
+
+  <button onclick="goHome()">BACK</button>
+</section>
+<section id="aiPhotoPage" style="display:none">
+  <h1>AI PHOTO</h1>
+  <p>Choose Your AI Style</p>
+
+  <button onclick="selectAIStyle('chibi')">
+    ✨ CHIBI 3D
+  </button>
+
+  
+
+  <button onclick="showPhotoMode()">BACK</button>
+</section>
+<section id="aiCameraPage" style="display:none">
+  <h1>AI PHOTO</h1>
+  <p id="aiStyleName">CHIBI 3D</p>
+
+  <div class="camera-wrap">
+  <video id="aiCamera" autoplay playsinline></video>
+  <img id="aiCameraOverlay" alt="" style="display:none;">
+</div>
+
+  <button onclick="takeAIPhoto()">📷 TAKE PHOTO</button>
+
+<button id="aiSwitchCameraButton" onclick="switchAICamera()">
+🔄 GANTI KAMERA
+</button>
+
+<button id="aiMirrorButton" onclick="toggleAIMirror()">
+MIRROR: OFF
+</button>
+
+<button onclick="backFromAICamera()">
+← BACK
+</button>
+</section>
+<section id="aiPreviewPage" style="display:none">
+  <h1>YOUR PHOTO</h1>
+  <p id="aiPreviewStyle"></p>
+
+  <img id="aiPhotoPreview"
+       alt="AI Photo Preview"
+       style="width:100%;max-width:500px;border-radius:12px;">
+
+  <button onclick="retakeAIPhoto()">
+    📷 RETAKE
+  </button>
+
+  <button onclick="processAIPhoto()">
+    ✨ PROCESS AI
+  </button>
+  
+<button id="aiDownloadButton"
+        onclick="downloadAIPhoto()"
+        style="display:none;">
+  ⬇ DOWNLOAD
+</button>
+
+<button id="aiBackHomeButton"
+        onclick="backAIToHome()"
+        style="display:none;">
+  ← BACK TO HOME
+</button>
+</section>
   <section id="templates" style="display:none">
     <h1>Choose Your Frame</h1>
     <div class="frames">
